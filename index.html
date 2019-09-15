@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>随机抽取待检查科室</title>
+  <script src="./lib/vue-2.6.10.js"></script>
+</head>
+
+<!-- 需求：
+0. 同步vscode配置 -- https://juejin.im/post/5b9b5a6f6fb9a05d22728e36
+[x]. 界面设计 -- 随机科室，开始按钮/确定按钮，已生成科室的列表
+[x]. 取随机数
+2. 导入科室列表
+[x]. 本地存储 -- https://www.w3school.com.cn/html/html5_webstorage.asp
+4. bootstrap界面优化 -- https://www.bilibili.com/video/av64556839/?p=2
+[x]. 开始随机抽取科室市闪烁，停止时确定随机数
+6. 备份为.json文件到本地
+7. 时间限制，一天只一次 -->
+
+<body>
+  <div id="app">
+    <p v-if="isReborn">准备开始抽取</p>
+    <p v-if="!isReborn">{{ ap_list[randomNum].name }}</p>
+    <input v-if="showStart" type="button" value="开始抽取" @click="startRnd">
+    <input v-if="!showStart" type="button" value="停止抽取" @click="endRnd">
+    <hr>
+    <ul>
+      <li v-for="item in selected_list" :key="item.id">{{item.time | dateFormat()}} -- {{item.name}}</li>
+    </ul>
+  </div>
+
+  <script>
+    var vm = new Vue({
+      el: '#app',
+      data: {
+        ap_list: [{
+            id: 1,
+            name: "信息科"
+          },
+          {
+            id: 2,
+            name: "财务科"
+          },
+          {
+            id: 3,
+            name: "医务科"
+          },
+        ],
+        selected_list: [],
+        showStart: true, // 是否显示“开始抽取”
+        isReborn: true, // 是否是初始状态
+        timer: '',
+        randomNum: 0 // 取科室的随机数
+      },
+      methods: {
+        startRnd() {
+          if (this.ap_list.length == 0) {
+            alert("待抽列表为空，请检查")
+          } else {
+            this.isReborn = false
+            this.showStart = false
+            // 每隔一段时间不断产生随机数
+            this.timer = setInterval(this.generateRandomNum, 50);
+          }
+        },
+        endRnd() {
+          this.isReborn = true
+          this.showStart = true
+          // 取当前随机值
+          clearInterval(this.timer);
+          // 将随机值对应元素移到已确定列表中
+          var new_item = this.ap_list.splice(this.randomNum, 1)[0]
+          new_item.time = new Date()
+          this.selected_list.push(new_item)
+          // alert弹窗提示抽取结果
+          alert("随机抽取的结果是 -- " + new_item.name)
+
+          if (typeof (Storage) !== "undefined") {
+            var str_selected_list = JSON.stringify(this.selected_list);
+            var str_ap_list = JSON.stringify(this.ap_list);
+
+            localStorage.setItem('selected_list', str_selected_list);
+            localStorage.setItem('ap_list', str_ap_list);
+          } else {
+            // 抱歉！不支持 Web Storage ..
+            alert('抱歉！该浏览器不支持 Web Storage')
+          }
+        },
+        // 产生随机数
+        generateRandomNum() {
+          this.randomNum = randomNum(0, this.ap_list.length - 1) // 随机取数
+        },
+      },
+      filters: { // 定义私有过滤器    过滤器有两个 条件  【过滤器名称 和 处理函数】
+        // 过滤器调用的时候，采用的是就近原则，如果私有过滤器和全局过滤器名称一致了，这时候 优先调用私有过滤器
+        dateFormat: function (dateStr, pattern = '') {
+          // 根据给定的时间字符串，得到特定的时间
+          var dt = new Date(dateStr)
+
+          //   yyyy-mm-dd
+          var y = dt.getFullYear()
+          var m = (dt.getMonth() + 1).toString().padStart(2, '0')
+          var d = dt.getDate().toString().padStart(2, '0')
+
+          if (pattern.toLowerCase() === 'yyyy-mm-dd') {
+            return `${y}-${m}-${d}`
+          } else {
+            var hh = dt.getHours().toString().padStart(2, '0')
+            var mm = dt.getMinutes().toString().padStart(2, '0')
+            var ss = dt.getSeconds().toString().padStart(2, '0')
+
+            return `${y}-${m}-${d} ${hh}:${mm}:${ss}`
+          }
+        }
+      },
+      mounted() {
+        let str_ap_list = localStorage.getItem('ap_list')
+        if (!str_ap_list) { // 最开始还没有任何数据时为null
+          this.ap_list = [{
+              id: 1,
+              name: "信息科"
+            },
+            {
+              id: 2,
+              name: "财务科"
+            },
+            {
+              id: 3,
+              name: "医务科"
+            },
+          ]
+        } else {
+          this.ap_list = JSON.parse(str_ap_list);
+        }
+
+        let str_selected_list = localStorage.getItem('selected_list')
+        if (!str_selected_list) { // 最开始还没有任何数据时为null
+          this.selected_list = []
+        } else {
+          this.selected_list = JSON.parse(str_selected_list)
+        }
+
+        // localStorage.clear(); // 运行该命令清除本地缓存
+      },
+    })
+
+    //生成从minNum到maxNum的随机数
+    function randomNum(minNum, maxNum) {
+      switch (arguments.length) {
+        case 1:
+          return parseInt(Math.random() * minNum + 1, 10);
+          break;
+        case 2:
+          return parseInt(Math.random() * (maxNum - minNum + 1) + minNum, 10);
+          break;
+        default:
+          return 0;
+          break;
+      }
+    }
+  </script>
+</body>
+
+</html>
